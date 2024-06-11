@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <svg id="svg" width="600" height="300"></svg>
+
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script>
+      const MARGIN = { top: 10, right: 10, bottom: 20, left: 40 };
+      const WIDTH = 600 - (MARGIN.left + MARGIN.right);
+      const HEIGHT = 300 - (MARGIN.top + MARGIN.bottom);
+      const PADDING = 0.1;
+      function handleData(data) {
+        const popExtent = d3.extent(data, (d) => parseFloat(d.population));
+        console.log(popExtent);
+        const xScale = d3
+          .scaleBand()
+          .domain(data.map((d) => d.label))
+          .range([MARGIN.left, WIDTH + MARGIN.left])
+          .padding(PADDING);
+        const yScale = d3
+          .scaleLinear()
+          .domain(popExtent)
+          .range([HEIGHT, MARGIN.top]);
+
+        const svg = d3.select("#svg");
+        const barGroup = svg.append("g");
+        const bottomAxis = d3.axisBottom(xScale);
+        const leftAxis = d3
+          .axisLeft(yScale)
+          .tickFormat(d3.format(".2s"))
+          .ticks(10)
+          .tickSize(-WIDTH);
+
+        svg
+          .append("g")
+          .attr("transform", `translate(${0}, ${HEIGHT})`)
+          .call(bottomAxis);
+        svg
+          .append("g")
+          .attr("transform", `translate(${MARGIN.left}, 0)`)
+          .call(leftAxis);
+
+        barGroup
+          .selectAll("rect")
+          .data(data)
+          .enter()
+          .append("rect")
+          .attr("class", "bar")
+          .attr("x", (d, i) => xScale(d.label))
+          .attr("y", (d) => yScale(d.population))
+          .attr("width", xScale.bandwidth())
+          .attr("height", (d) => HEIGHT - yScale(d.population))
+          .attr("fill", (d) => `hsl(${Math.random() * 360}, 100%, 50%`);
+      }
+
+      d3.csv("cities.csv").then(handleData);
+    </script>
+  </body>
+</html>
