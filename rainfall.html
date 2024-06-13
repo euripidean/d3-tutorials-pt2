@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <svg id="svg" width="600" height="400"></svg>
+
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script>
+      const WIDTH = 600;
+      const HEIGHT = 400;
+      const MARGIN = 40;
+      const parseTime = d3.timeParse("%d/%m/%Y");
+      function getExtents(data, value) {
+        if (value === "precipitation") {
+          return d3.extent(data, (d) => d.precipitation);
+        } else {
+          return d3.extent(data, (d) => d.date);
+        }
+      }
+
+      function getXScale(data) {
+        const scale = d3
+          .scaleTime()
+          .domain(getExtents(data, "date"))
+          .range([MARGIN, WIDTH - MARGIN]);
+        return scale;
+      }
+
+      function getYScale(data) {
+        const scale = d3
+          .scaleLinear()
+          .domain(getExtents(data, "precipitation"))
+          .range([HEIGHT - MARGIN, MARGIN])
+          .nice();
+        return scale;
+      }
+
+      function getCircleArea(data) {
+        const scale = d3
+          .scaleSqrt()
+          .domain(getExtents(data, "precipitation"))
+          .range([0, 15]);
+        return scale;
+      }
+
+      function getLineGen(xScale, yScale) {
+        const lineGen = d3
+          .line()
+          .x((d) => xScale(d.date))
+          .y((d) => yScale(d.precipitation))
+          .curve(d3.curveLinear);
+        return lineGen;
+      }
+
+      function getParsedTime(data) {
+        data.forEach((d) => (d.date = parseTime(d.date)));
+      }
+
+      function handleData(data) {
+        getParsedTime(data);
+        const baData = getDataForState(data, "BA");
+        const scData = getDataForState(data, "SC");
+
+        const allData = baData.concat(scData);
+
+        const xScale = getXScale(allData);
+        const yScale = getYScale(allData);
+        const circleRadius = getCircleArea(allData);
+
+        const baLineGen = getLineGen(xScale, yScale);
+        const scLineGen = getLineGen(xScale, yScale);
+
+        const colorScale = d3
+          .scaleSequential()
+          .domain(getExtents(data, "date"))
+          .interpolator(d3.interpolateViridis);
+
+        function getDataForState(data, state) {
+          const arr = data
+            .filter((d) => d.state === state)
+            .filter((d) => !isNaN(d.precipitation))
+            .map((d) => {
+              d.precipitation = parseFloat(d.precipitation);
+              return d;
+            });
+          return arr;
+        }
+        const svg = d3.select("#svg");
+        const graph = svg.append("g");
+        graph
+          .append("path")
+          .attr("d", baLineGen(baData))
+          .attr("stroke-width", 1)
+          .attr("stroke", "blue")
+          .attr("fill", "none");
+        graph
+          .append("path")
+          .attr("d", scLineGen(scData))
+          .attr("stroke-width", 1)
+          .attr("stroke", "black")
+          .attr("fill", "none");
+
+        svg
+          .append("g")
+          .selectAll("circle")
+          .data(baData)
+          .enter()
+          .append("circle")
+          .attr("cx", (d) => xScale(d.date))
+          .attr("cy", (d) => yScale(d.precipitation))
+          .attr("r", (d) => circleRadius(d.precipitation))
+          .attr("fill", (d) => colorScale(d.date));
+
+        const bottomAxis = d3.axisBottom(xScale);
+        const leftAxis = d3.axisLeft(yScale);
+
+        svg
+          .append("g")
+          // Position the group
+          .attr("transform", `translate(0, ${HEIGHT - MARGIN})`)
+          // generate the axis in the group
+          .call(bottomAxis);
+
+        // Append the group, transform, and add the axis
+        svg
+          .append("g")
+          .attr("transform", `translate(${MARGIN}, 0)`)
+          .call(leftAxis);
+      }
+
+      d3.csv("precipitation.csv").then(handleData);
+    </script>
+  </body>
+</html>
