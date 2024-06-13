@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
   <head>
+    <link rel="stylesheet" type="text/css" href="styles.css" />
     <meta charset="UTF-8" />
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,6 +9,7 @@
   </head>
   <body>
     <svg id="svg" width="600" height="400"></svg>
+    <select></select>
 
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <script>
@@ -41,10 +43,10 @@
         return scale;
       }
 
-      function getYScale(data) {
+      function getYScale(data, yRange) {
         const scale = d3
           .scaleLinear()
-          .domain(getExtents(data))
+          .domain(yRange)
           .range([HEIGHT - MARGIN, MARGIN]);
         return scale;
       }
@@ -66,18 +68,46 @@
         });
       }
 
+      function getAllYears(data) {
+        const allYears = [];
+        for (let i = 0; i < data.length; i += 1) {
+          let year = data[i]["YEAR"];
+          allYears.push(year);
+        }
+        return allYears;
+      }
+
+      function getTempRange(data) {
+        let minRange = Infinity;
+        let maxRange = -Infinity;
+
+        for (let i = 0; i < data.length; i += 1) {
+          let values = Object.values(data[i]).slice(2).map(Number);
+          let min = Math.min(...values);
+          let max = Math.max(...values);
+
+          if (min < minRange) {
+            minRange = min;
+          }
+
+          if (max > maxRange) {
+            maxRange = max;
+          }
+        }
+
+        return [minRange, maxRange];
+      }
+
       async function handleData() {
         const data = await d3.csv("indiaweather.csv");
-        const year1 = data[0];
-        const year1Data = convertToArray(year1);
-        const year2 = data[1];
-        const year2Data = convertToArray(year2);
-
-        const allData = year1Data.concat(year2Data);
+        const year = data[0];
+        const monthlyData = convertToArray(year);
+        const yRange = getTempRange(data);
+        const yearLabels = getAllYears(data);
+        console.log(yearLabels);
 
         // Scales
-        // const xScale = getXScale(allData);
-        const yScale = getYScale(allData);
+        const yScale = getYScale(monthlyData, yRange);
 
         // Axis
         const monthScale = d3
@@ -91,8 +121,7 @@
           .tickFormat(d3.timeFormat("%b"));
         const leftAxis = d3.axisLeft(yScale);
 
-        const y1Line = getLineGen(monthScale, yScale);
-        const y2Line = getLineGen(monthScale, yScale);
+        const areaLine = getLineGen(monthScale, yScale);
 
         // Select the SVG
         const svg = d3.select("#svg");
@@ -112,14 +141,33 @@
         const graph = svg.append("g");
 
         // Draw the graph
-        graph
+        const path = graph
           .append("path")
-          .attr("d", y1Line(year1Data))
+          .attr("d", areaLine(monthlyData))
           .attr("fill", "rgba(100, 149, 237, 0.2)");
-        graph
-          .append("path")
-          .attr("d", y2Line(year2Data))
-          .attr("fill", "rgba(50, 120, 100, 0.2)");
+
+        // add all Years as labels
+        const select = document.querySelector("select");
+
+        yearLabels.forEach((value, index) => {
+          let option = document.createElement("option");
+          option.text = value;
+          option.value = index;
+          select.appendChild(option);
+        });
+
+        // adding in Select event listener
+        document.querySelector("select").addEventListener("change", (e) => {
+          const index = parseInt(e.target.value);
+          const hue = (360 / 12) * index;
+          const fillColor = `hsla(${hue}, 100%, 50%, 0.33)`;
+          path
+            .transition()
+            .duration(1000)
+            .ease(d3.easeBackOut)
+            .attr("d", areaLine(convertToArray(data[index])))
+            .attr("fill", fillColor);
+        });
       }
 
       handleData();

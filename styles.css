@@ -1,0 +1,19 @@
+/* Put the box in the center of the page */
+body,
+html {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+
+#svg {
+  border: 1px solid;
+}
+
+select {
+  font-size: 1rem;
+  margin: 1rem 0;
+  align-self: flex-end;
+}
