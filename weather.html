@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <svg id="svg" width="600" height="400"></svg>
+
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script>
+      const WIDTH = 600;
+      const HEIGHT = 300;
+      const MARGIN = 40;
+      const MONTHS = [
+        "JAN",
+        "FEB",
+        "MAR",
+        "APR",
+        "MAY",
+        "JUN",
+        "JUL",
+        "AUG",
+        "SEP",
+        "OCT",
+        "NOV",
+        "DEC",
+      ];
+
+      function getExtents(data) {
+        return d3.extent(data, (d) => d.temp);
+      }
+
+      function getXScale(data) {
+        const scale = d3
+          .scaleLinear()
+          .domain([0, data.length])
+          .range([MARGIN, WIDTH - MARGIN]);
+        return scale;
+      }
+
+      function getYScale(data) {
+        const scale = d3
+          .scaleLinear()
+          .domain(getExtents(data))
+          .range([HEIGHT - MARGIN, MARGIN]);
+        return scale;
+      }
+
+      function getLineGen(monthScale, yScale) {
+        const lineGen = d3
+          .area()
+          .x((d) => monthScale(new Date(1901, MONTHS.indexOf(d.month), 1)))
+          .y0((d) => yScale(d.temp))
+          .y1(HEIGHT - MARGIN)
+          .curve(d3.curveBasis);
+        return lineGen;
+      }
+
+      function convertToArray(obj) {
+        return MONTHS.map((month) => {
+          const temp = parseFloat(obj[month]);
+          return { month: month, temp };
+        });
+      }
+
+      async function handleData() {
+        const data = await d3.csv("indiaweather.csv");
+        const year1 = data[0];
+        const year1Data = convertToArray(year1);
+        const year2 = data[1];
+        const year2Data = convertToArray(year2);
+
+        const allData = year1Data.concat(year2Data);
+
+        // Scales
+        // const xScale = getXScale(allData);
+        const yScale = getYScale(allData);
+
+        // Axis
+        const monthScale = d3
+          .scaleTime()
+          .domain([new Date("1901-01-02"), new Date("1901-12-01")])
+          .range([MARGIN, WIDTH - MARGIN])
+          .nice();
+
+        const bottomAxis = d3
+          .axisBottom(monthScale)
+          .tickFormat(d3.timeFormat("%b"));
+        const leftAxis = d3.axisLeft(yScale);
+
+        const y1Line = getLineGen(monthScale, yScale);
+        const y2Line = getLineGen(monthScale, yScale);
+
+        // Select the SVG
+        const svg = d3.select("#svg");
+
+        svg
+          .append("g")
+          .attr("transform", `translate(0, ${HEIGHT - MARGIN})`)
+          .call(bottomAxis);
+
+        // Create the left axis
+        svg
+          .append("g")
+          .attr("transform", `translate(${MARGIN}, 0)`)
+          .call(leftAxis);
+
+        // Make a group for the graph
+        const graph = svg.append("g");
+
+        // Draw the graph
+        graph
+          .append("path")
+          .attr("d", y1Line(year1Data))
+          .attr("fill", "rgba(100, 149, 237, 0.2)");
+        graph
+          .append("path")
+          .attr("d", y2Line(year2Data))
+          .attr("fill", "rgba(50, 120, 100, 0.2)");
+      }
+
+      handleData();
+    </script>
+  </body>
+</html>
