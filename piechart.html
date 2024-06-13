@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- <link rel="stylesheet" type="text/css" href="styles.css" /> -->
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <svg id="svg" width="600" height="600"></svg>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script>
+      // CONSTANTS
+      const WIDTH = 600;
+      const HEIGHT = 600;
+      const MARGIN = 40;
+      const OUTER_RADIUS = 200;
+      const ANGLE = 0.01;
+
+      // code goes here
+      async function handleData() {
+        const data = await d3.csv("cities.csv");
+
+        // Colours
+        const colorScale = d3
+          .scaleSequential()
+          .domain([0, data.length - 1])
+          .interpolator(d3.interpolateViridis);
+
+        const pieGen = d3.pie();
+        const arcData = pieGen(data.map((d) => d.population));
+
+        const arcGen = d3
+          .arc()
+          .innerRadius(MARGIN)
+          .outerRadius(OUTER_RADIUS)
+          .padAngle(ANGLE);
+
+        // Start drawing
+        const svg = d3.select("#svg");
+        // Append a group (<g>) to hold the arcs
+        const pieGroup = svg
+          .append("g")
+          // position the group in the center
+          .attr("transform", `translate(${WIDTH / 2}, ${HEIGHT / 2})`);
+
+        const piePath = pieGroup
+          .selectAll("path") // Select all paths
+          .data(arcData) // Use the arc data
+          .enter()
+          .append("path") // Make a path for each arc segment
+          .attr("d", arcGen) // Draw the arc segement with the generator
+          .attr("fill", (d, i) => colorScale(i)); // Use the color scale
+
+        const labels = svg.append("g");
+
+        labels
+          .selectAll("circle")
+          .data(data)
+          .enter()
+          .append("circle")
+          .attr("r", "5")
+          .attr("cx", 10)
+          .attr("cy", (d, i) => i * 20 + 15)
+          .attr("fill", (d, i) => colorScale(i));
+        labels
+          .selectAll("text")
+          .data(data)
+          .enter()
+          .append("text")
+          .text((d) => `${d.label}, ${d.country}`)
+          .style("font-size", 16)
+          .attr("x", 20)
+          .attr("y", (d, i) => i * 20 + 20);
+      }
+
+      handleData();
+    </script>
+  </body>
+</html>
