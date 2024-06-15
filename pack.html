@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!-- <link rel="stylesheet" type="text/css" href="styles.css" /> -->
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Pack</title>
+  </head>
+  <body>
+    <div id="key"></div>
+    <svg id="svg" width="600" height="600"></svg>
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script>
+      // code goes here
+      async function handleData() {
+        const data = await d3.csv("cities.csv");
+
+        // Create a color scale
+        const colorScale = d3
+          .scaleSequential(d3.interpolateViridis)
+          .domain(d3.extent(data, (d) => d.population));
+
+        // Number formatter
+        const num_f = d3.format(".2s");
+
+        const root = d3.hierarchy({ children: data }).sum((d) => d.population); // Must call sum before pack()
+
+        console.log(root);
+
+        const pack = d3.pack().size([600, 600]).padding(10);
+
+        const rootNode = pack(root);
+
+        // Select the SVG element
+        d3.select("#svg")
+          .style("border", "1px solid")
+          // Create a group for each element
+          .selectAll("g")
+          // Data is the leaves of the hierarchical root node
+          .data(rootNode.leaves())
+          .join("g")
+          .attr("transform", (d) => `translate(${d.x}, ${d.y})`)
+          .append("circle")
+          .attr("r", (d) => d.r)
+          .attr("fill", (d) => {
+            return colorScale(d.data.population);
+          });
+
+        d3.select("#svg")
+          .selectAll("g")
+          .data(rootNode.leaves())
+          .join("g")
+          .append("text")
+          .text((d) => num_f(d.data.population))
+          .attr("font-family", "Helvetica")
+          .style("text-anchor", "middle")
+          .style("alignment-baseline", "middle")
+          .style("mix-blend-mode", "difference")
+          .style("fill", "white");
+      }
+
+      handleData();
+    </script>
+  </body>
+</html>
