@@ -6,8 +6,23 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Document</title>
+    <style>
+      body {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        margin: 0;
+      }
+      #key {
+        position: absolute;
+        top: 10px;
+        left: 10px;
+      }
+    </style>
   </head>
   <body>
+    <div id="key"></div>
     <svg id="svg" width="600" height="600"></svg>
     <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
     <script>
@@ -18,9 +33,26 @@
       const OUTER_RADIUS = 200;
       const ANGLE = 0.01;
 
+      function getCountryArray(data) {
+        const countryObj = {};
+        for (let i = 0; i < data.length; i += 1) {
+          if (countryObj.hasOwnProperty(data[i]["country"])) {
+            countryObj[data[i]["country"]] += parseFloat(data[i]["population"]);
+          } else {
+            countryObj[data[i]["country"]] = parseFloat(data[i]["population"]);
+          }
+        }
+        return Object.entries(countryObj).map(([country, population]) => ({
+          country,
+          population,
+        }));
+      }
+
       // code goes here
       async function handleData() {
         const data = await d3.csv("cities.csv");
+        const countries = getCountryArray(data);
+        console.log(countries);
 
         // Colours
         const colorScale = d3
@@ -29,7 +61,9 @@
           .interpolator(d3.interpolateViridis);
 
         const pieGen = d3.pie();
+        const countryPieGen = d3.pie();
         const arcData = pieGen(data.map((d) => d.population));
+        const countryArcData = pieGen(countries.map((d) => d.population));
 
         const arcGen = d3
           .arc()
@@ -37,12 +71,25 @@
           .outerRadius(OUTER_RADIUS)
           .padAngle(ANGLE);
 
+        const countryArcGen = d3
+          .arc()
+          .innerRadius(OUTER_RADIUS + 40)
+          .outerRadius(OUTER_RADIUS)
+          .padAngle(ANGLE);
+
+        const arcLabels = d3.arc().innerRadius(160).outerRadius(160);
+
         // Start drawing
         const svg = d3.select("#svg");
+        const key = d3.select("#key");
         // Append a group (<g>) to hold the arcs
         const pieGroup = svg
           .append("g")
           // position the group in the center
+          .attr("transform", `translate(${WIDTH / 2}, ${HEIGHT / 2})`);
+
+        const countryPieGroup = svg
+          .append("g")
           .attr("transform", `translate(${WIDTH / 2}, ${HEIGHT / 2})`);
 
         const piePath = pieGroup
@@ -53,7 +100,22 @@
           .attr("d", arcGen) // Draw the arc segement with the generator
           .attr("fill", (d, i) => colorScale(i)); // Use the color scale
 
-        const labels = svg.append("g");
+        const countryPiePath = countryPieGroup
+          .selectAll("path")
+          .data(countryArcData)
+          .enter()
+          .append("path")
+          .attr("d", countryArcGen)
+          .attr("fill", (d, i) => colorScale(i));
+
+        const labels = key
+          .append("g")
+          .append("svg")
+          .attr("width", WIDTH)
+          .attr("height", HEIGHT);
+        const chartLabels = svg
+          .append("g")
+          .attr("transform", `translate(${WIDTH / 2}, ${HEIGHT / 2})`);
 
         labels
           .selectAll("circle")
@@ -73,6 +135,21 @@
           .style("font-size", 16)
           .attr("x", 20)
           .attr("y", (d, i) => i * 20 + 20);
+
+        chartLabels
+          .selectAll("text")
+          .data(data)
+          .enter()
+          .append("text")
+          .text((d) => d.label)
+          .style("font-size", 12)
+
+          .attr(
+            "transform",
+            (d, i) => `translate(${arcGen.centroid(arcData[i])})`
+          )
+
+          .attr("text-anchor", "middle");
       }
 
       handleData();
