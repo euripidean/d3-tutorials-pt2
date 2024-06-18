@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Document</title>
+  </head>
+  <body>
+    <svg id="svg" width="700" height="700"></svg>
+
+    <script src="https://cdn.jsdelivr.net/npm/d3@7"></script>
+    <script>
+      async function handleData() {
+        const data = await d3.csv("cities.csv");
+
+        const byCountry = {
+          label: "world",
+          children: [],
+          population: data.reduce((acc, d) => parseInt(d.population) + acc, 0),
+        };
+
+        const countryNames = Array.from(new Set(data.map((d) => d.country)));
+
+        countryNames.forEach((d) => {
+          const cities = data.filter((c) => c.country === d);
+          const population = cities.reduce(
+            (acc, d) => parseInt(d.population) + acc,
+            0
+          );
+          byCountry.children.push({
+            label: d,
+            population: population,
+            children: cities,
+          });
+        });
+
+        const root = d3.hierarchy(byCountry);
+
+        root.sum((d) => {
+          return d.population;
+        });
+
+        const pack = d3.pack().size([600, 600]).padding(2);
+
+        const rootNode = pack(root);
+
+        const num_f = d3.format(".2s");
+        const colorScale = d3.scaleOrdinal(d3.schemeCategory10);
+
+        const nodes = d3
+          .select("#svg")
+          .selectAll("g")
+          .data(rootNode.descendants())
+          .join("g")
+          .attr("transform", (d) => `translate(${d.x}, ${d.y})`);
+
+        nodes
+          .append("circle")
+          .attr("r", (d) => d.r) // get the radius
+          .attr("fill", (d) => {
+            if (d.data.country === undefined) {
+              let opacity = "0.5";
+              return colorScale(d.data.label);
+            }
+            opacity = "0.8";
+            return colorScale(d.data.country);
+          })
+          .attr("opacity", "0.5");
+
+        nodes
+          .append("text")
+          .text((d) => `${d.data.label}`)
+          .attr("font-family", "Helvetica")
+          .style("text-anchor", "middle")
+          .style("alignment-baseline", "middle")
+          // set the fill color to black for country and world
+          .style("fill", (d) => {
+            if (d.data.country === undefined) {
+              return "black";
+            }
+            return "white";
+          })
+          // Offset the y by the radius for the country and world
+          .attr("transform", (d) => {
+            if (d.data.country === undefined) {
+              return `translate(0, -${d.r})`;
+            }
+
+            return "translate(0, -8)";
+          });
+        nodes
+          .append("text")
+          .text((d) => `${d.data.label}`)
+          .attr("font-family", "Helvetica")
+          .style("text-anchor", "middle")
+          .style("alignment-baseline", "middle")
+          .style("fill", "white")
+          .attr("transform", `translate(0, -8)`);
+      }
+
+      handleData();
+    </script>
+  </body>
+</html>
